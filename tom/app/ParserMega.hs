@@ -14,7 +14,7 @@ type ParserMega m a = ParsecT Void Text m a
 
 transactionMega :: Monad m => ParserMega m Transaction
 transactionMega = do
-    !seq' :: Int <- string "Transaction (seq: " *> amount <* string ") => "
+    !seq' :: Integer <- string "Transaction (seq: " *> amount <* string ") => "
     !action <- choice
                 [ string "OpenAccount " *> (OpenAccount <$> account)
                 , string "Deposit " *> (Deposit <$> (amount <* string " to ") <*> account)
@@ -27,7 +27,8 @@ transactionMega = do
         account = (\s -> let !n = pack s in n) <$> some digitChar
         -- Keep for historical reasons - using read was very space leaky
         --amount = (\s -> let !n = read s in n) <$> some digitChar
-        amount = foldl' (\acc c -> acc * 10 + digitToInt c) 0 <$> some digitChar
+        amount :: ParserMega m Integer
+        amount = fromIntegral <$> foldl' (\acc c -> acc * 10 + digitToInt c) 0 <$> some digitChar
 
 parseMega :: forall m a. Monad m => ParserMega m a -> Text -> m a
 parseMega parser input = do

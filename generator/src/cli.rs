@@ -12,4 +12,10 @@ pub struct Cli {
     pub num_transfers: u64,
     #[arg(long, help = "Verbose output", default_value_t = false)]
     pub verbose: bool,
+    #[arg(
+        long,
+        help = "Output to stdout (instead of socket)",
+        default_value_t = false
+    )]
+    pub output_stdout: bool,
 }

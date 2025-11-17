@@ -1,9 +1,10 @@
 use clap::Parser;
+use colored::Colorize;
 use generator::cli::Cli;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::{
     fmt::Display,
-    io::{BufWriter, Write},
+    io::{self, BufWriter, Write},
     net::TcpStream,
 };
 
@@ -65,74 +66,76 @@ const TRANSFER_MAX: u32 = 999_999;
 fn main() {
     let cli = Cli::parse();
 
-    println!("Generating transactions and firing them to {}", cli.server);
+    eprintln!("Generating transactions and firing them to {}", cli.server);
 
     let mut rng = StdRng::seed_from_u64(12345);
     let mut seqg = (0..).map(|s| s as u32);
 
-    match TcpStream::connect(cli.server) {
-        Ok(stream) => {
-            let mut writer = BufWriter::new(stream);
-
-            // Generate a bunch of accounts
-            //
-            let accounts: Vec<String> = (0..)
-                .map(|_| gen_account(&mut rng))
-                .take(cli.num_accounts as usize)
-                .collect();
-
-            // Open them
-            //
-            accounts.iter().for_each(|account| {
-                let open_tx = Transaction {
-                    seq: seqg.next().expect("seq should never fail"),
-                    action: Action::OpenAccount(account.clone()),
-                };
-                if cli.verbose {
-                    println!("Sending [{}]", open_tx);
-                }
-                writeln!(writer, "{}", open_tx).expect("Write failed");
-
-                let deposit_tx = Transaction {
-                    seq: seqg.next().expect("seq should never fail"),
-                    action: Action::Deposit(
-                        account.clone(),
-                        gen_amount(&mut rng, &ACCOUNT_START_MAX),
-                    ),
-                };
-                if cli.verbose {
-                    println!("Sending [{}]", deposit_tx);
-                }
-                writeln!(writer, "{}", deposit_tx).expect("Write failed");
-            });
-
-            println!("Accounts sent!");
-
-            // Transfers
-            //
-            (0..cli.num_transfers).for_each(|_| {
-                let from = pick_account(&mut rng, &accounts);
-                let to = pick_account(&mut rng, &accounts);
-                let amount = gen_amount(&mut rng, &TRANSFER_MAX);
-                let transfer_tx = Transaction {
-                    seq: seqg.next().expect("seq should never fail"),
-                    action: Action::Transfer(from.clone(), to.clone(), amount),
-                };
-
-                if transfer_tx.seq % 10_000_000 == 0 {
-                    println!("  Sent {} total messages...", transfer_tx.seq);
-                }
-
-                if cli.verbose {
-                    println!("Sending [{}]", transfer_tx);
-                }
-                writeln!(writer, "{}", transfer_tx).expect("Write failed");
-            });
+    // Open a bufwriter to either the socket or stdout
+    //
+    let mut writer: BufWriter<Box<dyn Write>> = if cli.output_stdout {
+        BufWriter::new(Box::new(io::stdout()))
+    } else {
+        match TcpStream::connect(cli.server) {
+            Ok(stream) => BufWriter::new(Box::new(stream)),
+            Err(e) => {
+                eprintln!("Connection failed: {}", e);
+                std::process::exit(1);
+            }
         }
-        Err(e) => {
-            eprintln!("Connection failed: {}", e);
-        }
-    }
+    };
 
-    println!("Done! ({} total messages)", seqg.next().unwrap());
+    // Generate a bunch of accounts
+    //
+    let accounts: Vec<String> = (0..)
+        .map(|_| gen_account(&mut rng))
+        .take(cli.num_accounts as usize)
+        .collect();
+
+    // Open them
+    //
+    accounts.iter().for_each(|account| {
+        let open_tx = Transaction {
+            seq: seqg.next().expect("seq should never fail"),
+            action: Action::OpenAccount(account.clone()),
+        };
+        if cli.verbose {
+            eprintln!("Sending [{}]", open_tx);
+        }
+        writeln!(writer, "{}", open_tx).expect("Write failed");
+
+        let deposit_tx = Transaction {
+            seq: seqg.next().expect("seq should never fail"),
+            action: Action::Deposit(account.clone(), gen_amount(&mut rng, &ACCOUNT_START_MAX)),
+        };
+        if cli.verbose {
+            eprintln!("Sending [{}]", deposit_tx);
+        }
+        writeln!(writer, "{}", deposit_tx).expect("Write failed");
+    });
+
+    eprintln!("Accounts sent!");
+
+    // Transfers
+    //
+    (0..cli.num_transfers).for_each(|_| {
+        let from = pick_account(&mut rng, &accounts);
+        let to = pick_account(&mut rng, &accounts);
+        let amount = gen_amount(&mut rng, &TRANSFER_MAX);
+        let transfer_tx = Transaction {
+            seq: seqg.next().expect("seq should never fail"),
+            action: Action::Transfer(from.clone(), to.clone(), amount),
+        };
+
+        if transfer_tx.seq % 10_000_000 == 0 {
+            eprintln!("  Sent {} total messages...", transfer_tx.seq);
+        }
+
+        if cli.verbose {
+            eprintln!("Sending [{}]", transfer_tx);
+        }
+        writeln!(writer, "{}", transfer_tx).expect("Write failed");
+    });
+
+    eprintln!("Done! ({} total messages)", seqg.next().unwrap());
 }

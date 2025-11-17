@@ -15,12 +15,13 @@ import           System.IO              (IOMode (ReadMode), hClose, hIsEOF)
 import           Control.Concurrent     (modifyMVar_, newMVar, putMVar,
                                          readMVar, withMVar)
 import           Control.Monad.Loops
+import           Data.Text              (unpack)
 import           Debug.Trace            (trace)
 import           ParserAtto             (parseAtto, transactionAtto)
 import           ParserMega             (parseMega, transactionMega)
 import           Types
 
-type Accounts = (Map.Map Account Amount)
+type Accounts = Map.Map Account Amount
 
 -- Process function which doesn't allow negative account balances
 process :: Transaction -> Accounts -> Accounts
@@ -92,7 +93,9 @@ main = do
                         hClose
                         processAllUsingState
 
-        putStrLn $ "Results: " <> show (sum $ Map.elems results)
+        -- Calculate the final answer (account x balance) for each account
+        let r = sum $ (\(acc, bal) -> ((read $ unpack acc) :: Integer) * bal) <$> Map.toList results
+        putStrLn $ "Result: " <> show r
         putStrLn "Done"
         pure ()
 

@@ -16,6 +16,13 @@ Transaction (seq: <sequence>) => Transfer <amount> from <account> to <account>
 - `<account>` is a string value of length 12 e.g. "894804063960"
 - `<amount>` is a string value of variable length, representing a value in cents e.g. "647548" means 6475.48 (in whatever currency you like!)
 
+Your final result should be a total of the <account> multiplied by the <amount> as a single large integer value, i.e.:
+
+```
+in pseudocode:
+answer := accounts.map((account, balance) => account * balance).sum()
+```
+
 ## Running the generator
 
 The transaction generator is a command-line tool, which will connect to your socket (port 7077), and then start sending transactions. By default it will open 100,000 accounts, depositing a balance into each, and then deliver 1,000,000,000 transfer messages sending money between those accounts.
@@ -28,6 +35,25 @@ You will need to have Rust installed:
 > cargo run --release                                           # Run the full 1 billion
 > cargo run --release -- --num-accounts 2 --num-transfers 2     # A small test set
 ```
+
+## Known good answers
+
+We track a number of known-good answers for testing purposes:
+
+| Num Accounts (`--num-accounts`) | Num Transfers (`--num-transfers`) | Value |
+| --- | --- | --- |
+| 2 | 1 | ? |
+| 10 | 10 | ? |
+| 1,000 | 1,000 | ? |
+| 1,000 | 10,000 | ? |
+| 200,000 | 1,000 | ? |
+| 200,000 | 10,000 | ? |
+| 200,000 | 100,000 | ? |
+| 200,000 | 1,000,000 | ? |
+| 200,000 | 10,000,000 | 1379473885711228330625324 |
+| 200,000 | 1,000,000,000 | ? |
+
+
 
 ## Results
 

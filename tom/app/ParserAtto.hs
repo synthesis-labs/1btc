@@ -13,7 +13,7 @@ type ParserAtto a = Parser a
 
 transactionAtto :: ParserAtto Transaction
 transactionAtto = do
-    !seq' :: Int <- string "Transaction (seq: " *> amount <* string ") => "
+    !seq' :: Integer <- string "Transaction (seq: " *> amount <* string ") => "
     !action <- choice
                 [ string "OpenAccount " *> (OpenAccount <$> account)
                 , string "Deposit " *> (Deposit <$> (amount <* string " to ") <*> account)
@@ -24,6 +24,7 @@ transactionAtto = do
     where
         account :: ParserAtto Text
         account = takeWhile1 isDigit
+        amount :: ParserAtto Integer
         amount = decimal
 
 parseAtto :: Monad m => ParserAtto a -> Text -> m a
