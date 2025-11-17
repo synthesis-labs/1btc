@@ -36,3 +36,7 @@ We will keep track of everyone's scores as we write solutions.
 | folder | language | notes | time |
 | --- | --- | --- | --- |
 | tom/ | haskell | Very basic, single-threaded, StateT/MVar, not optimised | ~ 70 minutes |
+
+## Contributing
+
+This project is very much in its infancy, and really needs peoples ideas and contributions to work. Please feel free to open up an issue (for ideas) or PR to contribute to solutions or any other part of the repo.
