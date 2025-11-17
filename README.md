@@ -1,4 +1,4 @@
-# 1 Billion Payments Challenge!
+# 1 Billion TRANSACTIONS Challenge!
 
 Can you process 1 billion payments between to 100k accounts? Quickly? Give it a go!
 
@@ -13,10 +13,10 @@ Transaction (seq: <sequence>) => Transfer <amount> from <account> to <account>
 ```
 
 - `<sequence>` will be a monotomically incrementing number (starting at 0).
-- `<account>` is a string value of length 12 e.g. "894804063960"
-- `<amount>` is a string value of variable length, representing a value in cents e.g. "647548" means 6475.48 (in whatever currency you like!)
+- `<account>` is a string value of length 12 e.g. `894804063960`
+- `<amount>` is a string value of variable length, representing a value in cents e.g. `647548` means `6475.48` (in whatever currency you like!)
 
-Your final result should be a total of the <account> multiplied by the <amount> as a single large integer value, i.e.:
+Your final result should be a total of the `<account>` multiplied by the `<amount>` as a single large integer value, i.e.:
 
 ```
 in pseudocode:
@@ -42,18 +42,20 @@ We track a number of known-good answers for testing purposes:
 
 | Num Accounts (`--num-accounts`) | Num Transfers (`--num-transfers`) | Value |
 | --- | --- | --- |
-| 2 | 1 | ? |
-| 10 | 10 | ? |
-| 1,000 | 1,000 | ? |
-| 1,000 | 10,000 | ? |
-| 200,000 | 1,000 | ? |
-| 200,000 | 10,000 | ? |
-| 200,000 | 100,000 | ? |
-| 200,000 | 1,000,000 | ? |
-| 200,000 | 10,000,000 | 1379473885711228330625324 |
-| 200,000 | 1,000,000,000 | ? |
-
-
+|       2 |             1 | 7802340435860874795 |
+|      10 |            10 | 206908730321858291410 |
+|   1,000 |         1,000 | 14589473502612040113232 |
+|   1,000 |        10,000 | 14607046190646002930228 |
+| 200,000 |             1 | 1379473486286508022766389 |
+| 200,000 |            10 | 1379473408590418719934676 |
+| 200,000 |           100 | 1379473280717261413659297 |
+| 200,000 |         1,000 | 1379467959343653321872938 |
+| 200,000 |        10,000 | 1379446607613846494973713 |
+| 200,000 |       100,000 | 1379461126548048326681546 |
+| 200,000 |     1,000,000 | 1379473885711228330625324 |
+| 200,000 |    10,000,000 | 1379919624530053747331614 |
+| 200,000 |   100,000,000 | 1378858563671735004106822 |
+| 200,000 | 1,000,000,000 | 1380105297959762401860740 |
 
 ## Results
 
