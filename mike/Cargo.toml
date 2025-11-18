@@ -14,4 +14,6 @@ tokio-util = { version = "0.7.17", features = ["codec"] }
 opt-level = 3
 
 [profile.dev]
-debug = true
+debug = false
+opt-level = 3
+

@@ -19,6 +19,10 @@ Tue 18 Nov 2025 15:05:28 +03
 Tue 18 Nov 2025 15:07:10 +03
 ```
 
+```
+cargo run --release  121,02s user 11,67s system 99% cpu 2:12,85 total
+```
+
 *2:15 minutes*
 
 With output:
