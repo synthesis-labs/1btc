@@ -16,7 +16,6 @@ import           Control.Concurrent     (modifyMVar_, newMVar, putMVar,
                                          readMVar, withMVar)
 import           Control.Monad.Loops
 import           Data.Text              (unpack)
-import           Debug.Trace            (trace)
 import           ParserAtto             (parseAtto, transactionAtto)
 import           ParserMega             (parseMega, transactionMega)
 import           Types
@@ -76,13 +75,8 @@ processAllUsingState handle = evalStateT go Map.empty
                 (liftIO $ hIsEOF handle)
             get
 
-main :: IO ()
-main = do
-    sock <- socket AF_INET Stream defaultProtocol
-    let addr = SockAddrInet 7077 (tupleToHostAddress (127, 0, 0, 1))
-    bind sock addr
-    listen sock 1
-    putStrLn "Listening on port 7077..."
+singleThreaded :: Socket -> IO ()
+singleThreaded sock =
     forever $ do
         (conn, peer) <- accept sock
         putStrLn $ "Client connected from: " ++ show peer
@@ -98,3 +92,12 @@ main = do
         putStrLn $ "Result: " <> show r
         putStrLn "Done"
         pure ()
+
+main :: IO ()
+main = do
+    sock <- socket AF_INET Stream defaultProtocol
+    let addr = SockAddrInet 7077 (tupleToHostAddress (127, 0, 0, 1))
+    bind sock addr
+    listen sock 1
+    putStrLn "Listening on port 7077..."
+    singleThreaded sock
