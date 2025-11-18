@@ -94,7 +94,7 @@ impl Decoder for LfTerminatedCodec {
 
 
 fn parse_transaction2(line: &[u8]) -> Result<Transaction, ParseError> {
-    let s = std::str::from_utf8(&line[18..])?;
+    let s =unsafe {std::str::from_utf8_unchecked(&line[18..])};
     let mut parts = s.split_ascii_whitespace();
     
     let first  = parts.next().ok_or(ParseError::Format("Failed to find sequence"))?;
