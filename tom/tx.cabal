@@ -40,7 +40,12 @@ extra-doc-files: CHANGELOG.md
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
 common warnings
-  ghc-options: -Wall
+  ghc-options:
+    -Wall
+    -O2
+    -threaded
+    -rtsopts
+    -with-rtsopts="-N"
 
 executable tx
   -- Import common warning flags.
@@ -66,6 +71,7 @@ executable tx
     monad-loops,
     mtl,
     network,
+    stm,
     text,
 
   -- Directories containing source files.
