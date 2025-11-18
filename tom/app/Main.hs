@@ -54,7 +54,7 @@ processAllUsingMVar handle = do
             line <- TIO.hGetLine handle
             packet <- parseMega transactionMega line
             -- mvars are lazy so we force evaluation here with $!
-            modifyMVar_ accountsRef (\accounts -> pure $! processWithOverdraft packet accounts)
+            modifyMVar_ accountsRef (\accounts -> pure $! process packet accounts)
         )
         (hIsEOF handle)
 
@@ -71,7 +71,7 @@ processAllUsingState handle = evalStateT go Map.empty
                     line <- liftIO $ TIO.hGetLine handle
                     packet <- parseMega transactionMega line
                     -- modify' is the strict version
-                    modify' $ processWithOverdraft packet
+                    modify' $ process packet
                 )
                 (liftIO $ hIsEOF handle)
             get
@@ -98,7 +98,3 @@ main = do
         putStrLn $ "Result: " <> show r
         putStrLn "Done"
         pure ()
-
-
-
-
