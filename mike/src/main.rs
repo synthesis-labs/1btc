@@ -1,10 +1,11 @@
 use tokio_util::codec::Decoder;
-use bytes::BytesMut;
+use bytes::{BytesMut, Buf};
 use std::{io, thread::ThreadId};
 use tokio::net::{TcpStream, TcpListener};
 use tokio_util::codec::Framed;
 use tokio_stream::StreamExt;
 use std::collections::HashMap;
+// use memchr;
 
 //stream has a collection of messages: Transaction (seq: 253067) => Transfer 48337 from 199216764739 to 343382529531
 
@@ -48,29 +49,47 @@ impl Decoder for LfTerminatedCodec {
     type Error = io::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if let Some(pos) = src.iter().position(|b| *b == b'\n') {
-            // split_to includes everything up to pos
-            let mut frame = src.split_to(pos + 1);
+        if let Some(pos) = memchr::memchr(b'\n', src) {
+                        let line = &src[..pos];
 
-            // Drop the trailing '\n'
-            if frame.last() == Some(&b'\n') {
-                frame.truncate(frame.len() - 1);
-            }
+            // Parse the line
+            let tx = parse_transaction2(line)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format! ("{:?}", e)))?;
 
-            // println!("Decoded frame: {:?}", frame);
+            // Drop the line + '\n' from the buffer by advancing the cursor over it
+            src.advance(pos + 1);
 
-            let transaction = parse_transaction2(&frame)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", e)))?;
-
-            // println!("Parsed transaction: {:?}", transaction);
-
-            return Ok(Some(transaction));
+            return Ok(Some(tx));
         }
 
-        // No full frame yet
         Ok(None)
+
+        }
+
+
+        // if let Some(pos) = src.iter().position(|b| *b == b'\n') {
+        //     // split_to includes everything up to pos
+        //     let mut frame = src.split_to(pos + 1);
+
+        //     // // Drop the trailing '\n'
+        //     // if frame.last() == Some(&b'\n') {
+        //     //     frame.truncate(frame.len() - 1);
+        //     // }
+
+        //     // println!("Decoded frame: {:?}", frame);
+
+        //     let transaction = parse_transaction2(&frame)
+        //         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", e)))?;
+
+        //     // println!("Parsed transaction: {:?}", transaction);
+
+        //     return Ok(Some(transaction));
+        // }
+
+        // // No full frame yet
+        // Ok(None)
     }
-}
+
 
 
 
