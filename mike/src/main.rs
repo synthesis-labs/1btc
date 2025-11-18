@@ -1,6 +1,6 @@
 use tokio_util::codec::Decoder;
 use bytes::BytesMut;
-use std::io;
+use std::{io, thread::ThreadId};
 use tokio::net::{TcpStream, TcpListener};
 use tokio_util::codec::Framed;
 use tokio_stream::StreamExt;
@@ -57,8 +57,12 @@ impl Decoder for LfTerminatedCodec {
                 frame.truncate(frame.len() - 1);
             }
 
-            let transaction = parse_transaction(&frame)
+            // println!("Decoded frame: {:?}", frame);
+
+            let transaction = parse_transaction2(&frame)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", e)))?;
+
+            // println!("Parsed transaction: {:?}", transaction);
 
             return Ok(Some(transaction));
         }
@@ -69,6 +73,32 @@ impl Decoder for LfTerminatedCodec {
 }
 
 
+
+fn parse_transaction2(line: &[u8]) -> Result<Transaction, ParseError> {
+    let s = std::str::from_utf8(&line[18..])?;
+    let mut parts = s.split_ascii_whitespace();
+    
+    let first  = parts.next().ok_or(ParseError::Format("Failed to find sequence"))?;
+    let seq = &first[0..first.len()-1].parse()?;
+    let _ = parts.next(); // skip '=>'
+    let second = parts.next();
+    let third = parts.next().ok_or(ParseError::Format("Failed to find third element"));
+    let _ = parts.next();
+    let fifth = parts.next().ok_or(ParseError::Format("Failed to find third element"));
+    let _ = parts.next();
+    let seventh = parts.next().ok_or(ParseError::Format("Failed to find third element"));
+
+
+    // println!("Second: {:?}", third);
+
+    match(second) {
+        Some("OpenAccount") => Ok(Transaction{seq: *seq, action: Action::OpenAccount(third?.parse()?) }),
+        Some("Deposit") => Ok(Transaction{seq: *seq, action: Action::Deposit(fifth?.parse()?, third?.parse()?) }),
+        Some("Transfer") => Ok(Transaction{seq: *seq, action: Action::Transfer(fifth?.parse()?, seventh?.parse()?, third?.parse()?) }),
+        Some(x) => Err(ParseError::Format("unknown action {}")),
+        None => Err(ParseError::Format("missing action")),
+    }
+}
 
 fn parse_transaction(line: &[u8]) -> Result<Transaction, ParseError> {
     
