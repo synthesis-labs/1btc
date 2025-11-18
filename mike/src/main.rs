@@ -72,7 +72,7 @@ impl Decoder for LfTerminatedCodec {
 
 fn parse_transaction(line: &[u8]) -> Result<Transaction, ParseError> {
     
-    let mut s = std::str::from_utf8(line)?;
+    let s = std::str::from_utf8(line)?;
 
     const PREFIX: &str = "Transaction (seq: ";
     let s = s
@@ -187,7 +187,10 @@ async fn main() -> io::Result<()> {
 
     loop {
         let (socket, _) = listener.accept().await?;
-        handle_conn(socket).await;
+        let c = handle_conn(socket).await;
+        if let Err(e) = c {
+            eprintln!("Error handling connection: {:?}", e);
+        }
     }
 
 }
