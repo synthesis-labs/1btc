@@ -63,7 +63,10 @@ We will keep track of everyone's scores as we write solutions.
 
 | folder | language | notes | time |
 | --- | --- | --- | --- |
-| tom/ | haskell | Very basic, single-threaded, StateT/MVar, not optimised | ~ 70 minutes |
+| tom/ | haskell | `singleThreaded` - Very basic, single-threaded, StateT/MVar, not optimised | ~ 70 minutes |
+| tom/ | haskell | `simpleThreaded` - Basic, split read, parse and process into seperate threads (to keep ordering), TVar updates | ~ 28 minutes |
+| tom/ | haskell | `queuedStm` - Using STM to coordinate updates to accounts, using a thread pool. Ordering completely screwed of course - so incorrect results. | ~ 21 minutes |
+
 
 ## Contributing
 
