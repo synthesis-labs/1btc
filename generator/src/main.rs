@@ -2,18 +2,27 @@ use clap::Parser;
 use generator::cli::Cli;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::{
-    fmt::Write as FmtWrite,
     io::{self, BufWriter, Write},
     net::TcpStream,
 };
 
-fn gen_account(rng: &mut StdRng) -> String {
-    let x = rng.random_range(99_999_999_999..1_000_000_000_000u64);
-    format!("{:012}", x)
+fn gen_account(rng: &mut StdRng) -> u64 {
+    rng.random_range(99_999_999_999..1_000_000_000_000u64)
 }
 
 fn pick_account_idx(rng: &mut StdRng, num_accounts: usize) -> usize {
     rng.random_range(0..num_accounts)
+}
+
+// Format account number with zero-padding to exactly 12 digits
+fn format_account(account: u64, buf: &mut String) {
+    let mut itoa_buf = itoa::Buffer::new();
+    let account_str = itoa_buf.format(account);
+    let padding = 12 - account_str.len();
+    for _ in 0..padding {
+        buf.push('0');
+    }
+    buf.push_str(account_str);
 }
 
 fn gen_amount(rng: &mut StdRng, max: &u32) -> u32 {
@@ -37,7 +46,7 @@ fn main() {
 
     // Open a bufwriter to either the socket or stdout
     //
-    const BUFFER_SIZE: usize = 4 * 1024 * 1024; // 4MB buffer
+    const BUFFER_SIZE: usize = 16 * 1024 * 1024; // 16MB
     let mut writer: BufWriter<Box<dyn Write>> = if cli.output_stdout {
         BufWriter::with_capacity(BUFFER_SIZE, Box::new(io::stdout()))
     } else {
@@ -52,20 +61,26 @@ fn main() {
 
     // Generate a bunch of accounts
     //
-    let accounts: Vec<String> = (0..)
+    let accounts: Vec<u64> = (0..)
         .map(|_| gen_account(&mut rng))
         .take(cli.num_accounts as usize)
         .collect();
 
-    // Reusable buffer for formatting messages
+    // Reusable buffers for formatting messages
     let mut msg_buf = String::with_capacity(256);
+    let mut itoa_buf = itoa::Buffer::new();
 
     // Open them
     //
-    for account in &accounts {
+    for &account in &accounts {
         let seq = seqg.next().expect("seq should never fail");
         msg_buf.clear();
-        write!(&mut msg_buf, "Transaction (seq: {}) => OpenAccount {}\n", seq, account).unwrap();
+        msg_buf.push_str("Transaction (seq: ");
+        msg_buf.push_str(itoa_buf.format(seq));
+        msg_buf.push_str(") => OpenAccount ");
+        format_account(account, &mut msg_buf);
+        msg_buf.push('\n');
+
         if cli.verbose {
             eprint!("Sending [{}]", msg_buf.trim_end());
         }
@@ -74,7 +89,14 @@ fn main() {
         let seq = seqg.next().expect("seq should never fail");
         let amount = gen_amount(&mut rng, &ACCOUNT_START_MAX);
         msg_buf.clear();
-        write!(&mut msg_buf, "Transaction (seq: {}) => Deposit {} to {}\n", seq, amount, account).unwrap();
+        msg_buf.push_str("Transaction (seq: ");
+        msg_buf.push_str(itoa_buf.format(seq));
+        msg_buf.push_str(") => Deposit ");
+        msg_buf.push_str(itoa_buf.format(amount));
+        msg_buf.push_str(" to ");
+        format_account(account, &mut msg_buf);
+        msg_buf.push('\n');
+
         if cli.verbose {
             eprint!("Sending [{}]", msg_buf.trim_end());
         }
@@ -97,8 +119,15 @@ fn main() {
         }
 
         msg_buf.clear();
-        write!(&mut msg_buf, "Transaction (seq: {}) => Transfer {} from {} to {}\n",
-               seq, amount, &accounts[from_idx], &accounts[to_idx]).unwrap();
+        msg_buf.push_str("Transaction (seq: ");
+        msg_buf.push_str(itoa_buf.format(seq));
+        msg_buf.push_str(") => Transfer ");
+        msg_buf.push_str(itoa_buf.format(amount));
+        msg_buf.push_str(" from ");
+        format_account(accounts[from_idx], &mut msg_buf);
+        msg_buf.push_str(" to ");
+        format_account(accounts[to_idx], &mut msg_buf);
+        msg_buf.push('\n');
 
         if cli.verbose {
             eprint!("Sending [{}]", msg_buf.trim_end());
