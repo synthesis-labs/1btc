@@ -15,8 +15,6 @@ Accounts sent!
   Sent 1000000000 total messages...
 Done! (1000200000 total messages)
 Tue 18 Nov 2025 15:05:28 +03
-➜  generator git:(main) ✗ date && cargo run && date           
-Tue 18 Nov 2025 15:07:10 +03
 ```
 
 ```
@@ -24,7 +22,11 @@ cargo run --release  121,02s user 11,67s system 99% cpu 2:12,85 total
 cargo run --release  119,75s user 12,61s system 99% cpu 2:12,61 total
 ```
 
-*2:15 minutes*
+Now with improved generator:
+```
+cargo run --release  40,57s user 5,54s system 53% cpu 1:26,39 total
+```
+
 
 With output:
 
