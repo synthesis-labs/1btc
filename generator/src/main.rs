@@ -1,55 +1,19 @@
 use clap::Parser;
-use colored::Colorize;
 use generator::cli::Cli;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::{
-    fmt::Display,
+    fmt::Write as FmtWrite,
     io::{self, BufWriter, Write},
     net::TcpStream,
 };
-
-type Account = String;
-type Amount = u32;
-
-#[derive(Debug)]
-struct Transaction {
-    seq: u32,
-    action: Action,
-}
-
-#[derive(Debug)]
-enum Action {
-    OpenAccount(Account),
-    Deposit(Account, Amount),
-    Transfer(Account, Account, Amount),
-}
-
-impl Display for Transaction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Transaction (seq: {}) => {}", self.seq, self.action)
-    }
-}
-
-impl Display for Action {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::OpenAccount(account) => write!(f, "OpenAccount {}", account),
-            Self::Deposit(to, amount) => write!(f, "Deposit {} to {}", amount, to),
-            Self::Transfer(from, to, amount) => {
-                write!(f, "Transfer {} from {} to {}", amount, from, to)
-            }
-        }
-    }
-}
 
 fn gen_account(rng: &mut StdRng) -> String {
     let x = rng.random_range(99_999_999_999..1_000_000_000_000u64);
     format!("{:012}", x)
 }
 
-fn pick_account<'r>(rng: &mut StdRng, accounts: &'r Vec<String>) -> &'r String {
-    let i = rng.random_range(0..accounts.len());
-    &accounts.get(i).unwrap() // Absolutely fail!
+fn pick_account_idx(rng: &mut StdRng, num_accounts: usize) -> usize {
+    rng.random_range(0..num_accounts)
 }
 
 fn gen_amount(rng: &mut StdRng, max: &u32) -> u32 {
@@ -73,11 +37,12 @@ fn main() {
 
     // Open a bufwriter to either the socket or stdout
     //
+    const BUFFER_SIZE: usize = 4 * 1024 * 1024; // 4MB buffer
     let mut writer: BufWriter<Box<dyn Write>> = if cli.output_stdout {
-        BufWriter::new(Box::new(io::stdout()))
+        BufWriter::with_capacity(BUFFER_SIZE, Box::new(io::stdout()))
     } else {
         match TcpStream::connect(cli.server) {
-            Ok(stream) => BufWriter::new(Box::new(stream)),
+            Ok(stream) => BufWriter::with_capacity(BUFFER_SIZE, Box::new(stream)),
             Err(e) => {
                 eprintln!("Connection failed: {}", e);
                 std::process::exit(1);
@@ -92,50 +57,54 @@ fn main() {
         .take(cli.num_accounts as usize)
         .collect();
 
+    // Reusable buffer for formatting messages
+    let mut msg_buf = String::with_capacity(256);
+
     // Open them
     //
-    accounts.iter().for_each(|account| {
-        let open_tx = Transaction {
-            seq: seqg.next().expect("seq should never fail"),
-            action: Action::OpenAccount(account.clone()),
-        };
+    for account in &accounts {
+        let seq = seqg.next().expect("seq should never fail");
+        msg_buf.clear();
+        write!(&mut msg_buf, "Transaction (seq: {}) => OpenAccount {}\n", seq, account).unwrap();
         if cli.verbose {
-            eprintln!("Sending [{}]", open_tx);
+            eprint!("Sending [{}]", msg_buf.trim_end());
         }
-        writeln!(writer, "{}", open_tx).expect("Write failed");
+        writer.write_all(msg_buf.as_bytes()).expect("Write failed");
 
-        let deposit_tx = Transaction {
-            seq: seqg.next().expect("seq should never fail"),
-            action: Action::Deposit(account.clone(), gen_amount(&mut rng, &ACCOUNT_START_MAX)),
-        };
+        let seq = seqg.next().expect("seq should never fail");
+        let amount = gen_amount(&mut rng, &ACCOUNT_START_MAX);
+        msg_buf.clear();
+        write!(&mut msg_buf, "Transaction (seq: {}) => Deposit {} to {}\n", seq, amount, account).unwrap();
         if cli.verbose {
-            eprintln!("Sending [{}]", deposit_tx);
+            eprint!("Sending [{}]", msg_buf.trim_end());
         }
-        writeln!(writer, "{}", deposit_tx).expect("Write failed");
-    });
+        writer.write_all(msg_buf.as_bytes()).expect("Write failed");
+    }
 
     eprintln!("Accounts sent!");
 
     // Transfers
     //
-    (0..cli.num_transfers).for_each(|_| {
-        let from = pick_account(&mut rng, &accounts);
-        let to = pick_account(&mut rng, &accounts);
+    let num_accounts = accounts.len();
+    for _ in 0..cli.num_transfers {
+        let from_idx = pick_account_idx(&mut rng, num_accounts);
+        let to_idx = pick_account_idx(&mut rng, num_accounts);
         let amount = gen_amount(&mut rng, &TRANSFER_MAX);
-        let transfer_tx = Transaction {
-            seq: seqg.next().expect("seq should never fail"),
-            action: Action::Transfer(from.clone(), to.clone(), amount),
-        };
+        let seq = seqg.next().expect("seq should never fail");
 
-        if transfer_tx.seq % 10_000_000 == 0 {
-            eprintln!("  Sent {} total messages...", transfer_tx.seq);
+        if seq % 10_000_000 == 0 {
+            eprintln!("  Sent {} total messages...", seq);
         }
+
+        msg_buf.clear();
+        write!(&mut msg_buf, "Transaction (seq: {}) => Transfer {} from {} to {}\n",
+               seq, amount, &accounts[from_idx], &accounts[to_idx]).unwrap();
 
         if cli.verbose {
-            eprintln!("Sending [{}]", transfer_tx);
+            eprint!("Sending [{}]", msg_buf.trim_end());
         }
-        writeln!(writer, "{}", transfer_tx).expect("Write failed");
-    });
+        writer.write_all(msg_buf.as_bytes()).expect("Write failed");
+    }
 
     eprintln!("Done! ({} total messages)", seqg.next().unwrap());
 }
