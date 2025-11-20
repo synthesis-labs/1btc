@@ -1,6 +1,6 @@
 use tokio_util::codec::Decoder;
 use bytes::{BytesMut, Buf};
-use std::{io, thread::ThreadId};
+use std::{fmt::Display, io};
 use tokio::net::{TcpStream, TcpListener};
 use tokio_util::codec::Framed;
 use tokio_stream::StreamExt;
@@ -14,7 +14,7 @@ type Amount = u32;
 
 #[derive(Debug)]
 pub struct Transaction {
-    seq: u32,
+    // seq: u32,
     action: Action,
 }
 
@@ -30,14 +30,29 @@ enum ParseError {
     Utf8(std::str::Utf8Error),
     Int(std::num::ParseIntError),
     Format(&'static str),
+    // Utf8(()),
+    // Int(()),
+    // Format(()),
 }
 
 impl From<std::str::Utf8Error> for ParseError {
     fn from(e: std::str::Utf8Error) -> Self { ParseError::Utf8(e) }
+    // fn from(e: std::str::Utf8Error) -> Self { ParseError::Utf8(()) }
 }
 
 impl From<std::num::ParseIntError> for ParseError {
     fn from(e: std::num::ParseIntError) -> Self { ParseError::Int(e) }
+    // fn from(e: std::num::ParseIntError) -> Self { ParseError::Int(()) }
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseError::Utf8(e) => write!(f, "UTF-8 error: {}", e),
+            ParseError::Int(e) => write!(f, "Integer parse error: {}", e),
+            ParseError::Format(s) => write!(f, "Format error: {}", s),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -49,12 +64,17 @@ impl Decoder for LfTerminatedCodec {
     type Error = io::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        
+        if src.capacity() < 16 * 1024 * 1024 {
+            src.reserve(16 * 1024 * 1024 - src.len());
+        }
+        
         if let Some(pos) = memchr::memchr(b'\n', src) {
                         let line = &src[..pos];
 
             // Parse the line
-            let tx = parse_transaction2(line)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format! ("{:?}", e)))?;
+            let tx = parse_transaction(line)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format! ("{}", e)))?;
 
             // Drop the line + '\n' from the buffer by advancing the cursor over it
             src.advance(pos + 1);
@@ -93,101 +113,42 @@ impl Decoder for LfTerminatedCodec {
 
 
 
-fn parse_transaction2(line: &[u8]) -> Result<Transaction, ParseError> {
+fn parse_transaction(line: &[u8]) -> Result<Transaction, ParseError> {
     let s =unsafe {std::str::from_utf8_unchecked(&line[18..])};
     let mut parts = s.split_ascii_whitespace();
     
-    let first  = parts.next().ok_or(ParseError::Format("Failed to find sequence"))?;
-    let seq = &first[0..first.len()-1].parse()?;
+    // let first  = parts.next().ok_or(ParseError::Format("Failed to find sequence"))?;
+    // let seq = &first[0..first.len()-1].parse()?;
+    let _ = parts.next(); // skip 'seq:'
     let _ = parts.next(); // skip '=>'
     let second = parts.next();
     let third = parts.next().ok_or(ParseError::Format("Failed to find third element"));
     let _ = parts.next();
-    let fifth = parts.next().ok_or(ParseError::Format("Failed to find third element"));
+    let fifth = parts.next().ok_or(ParseError::Format("Failed to find fifth element"));
     let _ = parts.next();
-    let seventh = parts.next().ok_or(ParseError::Format("Failed to find third element"));
+    let seventh = parts.next().ok_or(ParseError::Format("Failed to find seventh element"));
 
 
     // println!("Second: {:?}", third);
 
-    match(second) {
-        Some("OpenAccount") => Ok(Transaction{seq: *seq, action: Action::OpenAccount(third?.parse()?) }),
-        Some("Deposit") => Ok(Transaction{seq: *seq, action: Action::Deposit(fifth?.parse()?, third?.parse()?) }),
-        Some("Transfer") => Ok(Transaction{seq: *seq, action: Action::Transfer(fifth?.parse()?, seventh?.parse()?, third?.parse()?) }),
-        Some(x) => Err(ParseError::Format("unknown action {}")),
+    match second {
+        Some("OpenAccount") => Ok(Transaction{action: Action::OpenAccount(third?.parse()?) }),
+        Some("Deposit") => Ok(Transaction{action: Action::Deposit(fifth?.parse()?, third?.parse()?) }),
+        Some("Transfer") => Ok(Transaction{action: Action::Transfer(fifth?.parse()?, seventh?.parse()?, third?.parse()?) }),
+        // Some(x) => Err(ParseError::Format("unknown action {}")),
+        Some(_) => Err(ParseError::Format("unknown action")),
         None => Err(ParseError::Format("missing action")),
     }
+
+    // match(second) {
+    //     Some("OpenAccount") => Ok(Transaction{seq: *seq, action: Action::OpenAccount(third?.parse()?) }),
+    //     Some("Deposit") => Ok(Transaction{seq: *seq, action: Action::Deposit(fifth?.parse()?, third?.parse()?) }),
+    //     Some("Transfer") => Ok(Transaction{seq: *seq, action: Action::Transfer(fifth?.parse()?, seventh?.parse()?, third?.parse()?) }),
+    //     Some(x) => Err(ParseError::Format("unknown action {}")),
+    //     None => Err(ParseError::Format("missing action")),
+    // }
+
 }
-
-fn parse_transaction(line: &[u8]) -> Result<Transaction, ParseError> {
-    
-    let s = std::str::from_utf8(line)?;
-
-    const PREFIX: &str = "Transaction (seq: ";
-    let s = s
-        .strip_prefix(PREFIX)
-        .ok_or(ParseError::Format("missing prefix"))?;
-
-    // seq is before ')'
-    let (seq_str, rest) = s
-        .split_once(')')
-        .ok_or(ParseError::Format("missing closing ')'"))?;
-    let seq: u32 = seq_str.trim().parse()?;
-
-    // After ") => "
-    let rest = rest
-        .strip_prefix(" => ")
-        .ok_or(ParseError::Format("missing ' => '"))?;
-
-    // --- OpenAccount ---
-    if let Some(account_str) = rest.strip_prefix("OpenAccount ") {
-        let account: Account = account_str.trim().parse()?;
-        return Ok(Transaction {
-            seq,
-            action: Action::OpenAccount(account),
-        });
-    }
-
-    // --- Deposit <amount> to <account> ---
-    if let Some(rest) = rest.strip_prefix("Deposit ") {
-        let (amount_str, account_str) = rest
-            .split_once(" to ")
-            .ok_or(ParseError::Format("bad Deposit format"))?;
-
-        let amount: Amount = amount_str.trim().parse()?;
-        let account: Account = account_str.trim().parse()?;
-
-        return Ok(Transaction {
-            seq,
-            action: Action::Deposit(account, amount),
-        });
-    }
-
-    // --- Transfer <amount> from <src> to <dst> ---
-    if let Some(rest) = rest.strip_prefix("Transfer ") {
-        // amount before " from "
-        let (amount_str, rest) = rest
-            .split_once(" from ")
-            .ok_or(ParseError::Format("missing ' from ' in Transfer"))?;
-        let amount: Amount = amount_str.trim().parse()?;
-
-        // now "<src> to <dst>"
-        let (from_str, to_str) = rest
-            .split_once(" to ")
-            .ok_or(ParseError::Format("missing ' to ' in Transfer"))?;
-
-        let from = from_str.trim().parse()?;
-        let to = to_str.trim().parse()?;
-
-        return Ok(Transaction {
-            seq,
-            action: Action::Transfer(from, to, amount),
-        });
-    }
-
-    Err(ParseError::Format("unknown action"))
-}
-
 
 async fn handle_conn(stream: TcpStream) -> io::Result<()> {
     println!("New connection from: {}", stream.peer_addr()?);
