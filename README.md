@@ -36,6 +36,20 @@ You will need to have Rust installed:
 > cargo run --release -- --num-accounts 2 --num-transfers 2     # A small test set
 ```
 
+## Compact mode
+
+For the crazies there is also a compact wire protocol which reduces the number of bytes on the wire, by removing superflous bits of each message, and seperating each field with a `|` - turn it on with `--compact` flag to the generator:
+
+```
+> cargo run --release -- --num-accounts 2 --num-transfers 2 --compact --output-stdout
+0|O|375339063135
+1|D|16330129|375339063135
+2|O|894804063960
+3|D|2245613|894804063960
+4|T|647548|894804063960|375339063135
+5|T|208011|375339063135|894804063960
+```
+
 ## Known good answers
 
 We track a number of known-good answers for testing purposes:
