@@ -1,6 +1,5 @@
-use futures::StreamExt;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::TcpListener;
-use tokio_util::codec::{FramedRead, LinesCodec};
 
 mod parser;
 mod types;
@@ -16,20 +15,13 @@ async fn main() -> std::io::Result<()> {
         println!("New connection from: {}", addr);
 
         tokio::spawn(async move {
-            let mut framed = FramedRead::new(socket, LinesCodec::new());
+            let reader = BufReader::new(socket);
+            let mut lines = reader.lines();
 
-            while let Some(result) = framed.next().await {
-                // match result {
-                //     Ok(line) => {
-                //         match parser::parse_line(&line) {
-                //             Ok(transaction) => {} // println!("{:?}", transaction),
-                //             Err(e) => println!("Error parsing line: {}", e),
-                //         }
-                //     }
-                //     Err(e) => {
-                //         println!("Error reading line: {}", e);
-                //         break;
-                //     }
+            while let Ok(Some(line)) = lines.next_line().await {
+                // match parser::parse_line(&line) {
+                //     Ok(transaction) => {} // println!("{:?}", transaction),
+                //     Err(e) => println!("Error parsing line: {}", e),
                 // }
             }
 

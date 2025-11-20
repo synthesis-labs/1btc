@@ -1,5 +1,7 @@
 use clap::Parser;
 use generator::cli::Cli;
+use generator::protocol;
+use itoa::Buffer;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::{
     io::{self, BufWriter, Write},
@@ -12,17 +14,6 @@ fn gen_account(rng: &mut StdRng) -> u64 {
 
 fn pick_account_idx(rng: &mut StdRng, num_accounts: usize) -> usize {
     rng.random_range(0..num_accounts)
-}
-
-// Format account number with zero-padding to exactly 12 digits
-fn format_account(account: u64, buf: &mut String) {
-    let mut itoa_buf = itoa::Buffer::new();
-    let account_str = itoa_buf.format(account);
-    let padding = 12 - account_str.len();
-    for _ in 0..padding {
-        buf.push('0');
-    }
-    buf.push_str(account_str);
 }
 
 fn gen_amount(rng: &mut StdRng, max: &u32) -> u32 {
@@ -73,29 +64,28 @@ fn main() {
     // Open them
     //
     for &account in &accounts {
+        // Open accounts
+        //
         let seq = seqg.next().expect("seq should never fail");
-        msg_buf.clear();
-        msg_buf.push_str("Transaction (seq: ");
-        msg_buf.push_str(itoa_buf.format(seq));
-        msg_buf.push_str(") => OpenAccount ");
-        format_account(account, &mut msg_buf);
-        msg_buf.push('\n');
+        protocol::write_open_account(cli.compact, &mut msg_buf, &mut itoa_buf, &seq, &account);
 
         if cli.verbose {
             eprint!("Sending [{}]", msg_buf.trim_end());
         }
         writer.write_all(msg_buf.as_bytes()).expect("Write failed");
 
+        // Now deposit to each account
+        //
         let seq = seqg.next().expect("seq should never fail");
         let amount = gen_amount(&mut rng, &ACCOUNT_START_MAX);
-        msg_buf.clear();
-        msg_buf.push_str("Transaction (seq: ");
-        msg_buf.push_str(itoa_buf.format(seq));
-        msg_buf.push_str(") => Deposit ");
-        msg_buf.push_str(itoa_buf.format(amount));
-        msg_buf.push_str(" to ");
-        format_account(account, &mut msg_buf);
-        msg_buf.push('\n');
+        protocol::write_deposit(
+            cli.compact,
+            &mut msg_buf,
+            &mut itoa_buf,
+            &seq,
+            &account,
+            &amount,
+        );
 
         if cli.verbose {
             eprint!("Sending [{}]", msg_buf.trim_end());
@@ -118,16 +108,15 @@ fn main() {
             eprintln!("  Sent {} total messages...", seq);
         }
 
-        msg_buf.clear();
-        msg_buf.push_str("Transaction (seq: ");
-        msg_buf.push_str(itoa_buf.format(seq));
-        msg_buf.push_str(") => Transfer ");
-        msg_buf.push_str(itoa_buf.format(amount));
-        msg_buf.push_str(" from ");
-        format_account(accounts[from_idx], &mut msg_buf);
-        msg_buf.push_str(" to ");
-        format_account(accounts[to_idx], &mut msg_buf);
-        msg_buf.push('\n');
+        protocol::write_transfer(
+            cli.compact,
+            &mut msg_buf,
+            &mut itoa_buf,
+            &seq,
+            &accounts[from_idx],
+            &accounts[to_idx],
+            &amount,
+        );
 
         if cli.verbose {
             eprint!("Sending [{}]", msg_buf.trim_end());

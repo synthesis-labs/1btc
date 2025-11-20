@@ -18,4 +18,10 @@ pub struct Cli {
         default_value_t = false
     )]
     pub output_stdout: bool,
+    #[arg(
+        long,
+        help = "Output compact text format (less bytes on the wire)",
+        default_value_t = false
+    )]
+    pub compact: bool,
 }
