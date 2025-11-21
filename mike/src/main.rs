@@ -5,7 +5,6 @@ use tokio::net::{TcpStream, TcpListener};
 use tokio_util::codec::Framed;
 use tokio_stream::StreamExt;
 use std::collections::HashMap;
-// use memchr;
 
 //stream has a collection of messages: Transaction (seq: 253067) => Transfer 48337 from 199216764739 to 343382529531
 
@@ -30,9 +29,6 @@ enum ParseError {
     Utf8(std::str::Utf8Error),
     Int(std::num::ParseIntError),
     Format(&'static str),
-    // Utf8(()),
-    // Int(()),
-    // Format(()),
 }
 
 impl From<std::str::Utf8Error> for ParseError {
@@ -85,29 +81,6 @@ impl Decoder for LfTerminatedCodec {
         Ok(None)
 
         }
-
-
-        // if let Some(pos) = src.iter().position(|b| *b == b'\n') {
-        //     // split_to includes everything up to pos
-        //     let mut frame = src.split_to(pos + 1);
-
-        //     // // Drop the trailing '\n'
-        //     // if frame.last() == Some(&b'\n') {
-        //     //     frame.truncate(frame.len() - 1);
-        //     // }
-
-        //     // println!("Decoded frame: {:?}", frame);
-
-        //     let transaction = parse_transaction2(&frame)
-        //         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("{:?}", e)))?;
-
-        //     // println!("Parsed transaction: {:?}", transaction);
-
-        //     return Ok(Some(transaction));
-        // }
-
-        // // No full frame yet
-        // Ok(None)
     }
 
 
@@ -135,7 +108,6 @@ fn parse_transaction(line: &[u8]) -> Result<Transaction, ParseError> {
         Some("OpenAccount") => Ok(Transaction{action: Action::OpenAccount(third?.parse()?) }),
         Some("Deposit") => Ok(Transaction{action: Action::Deposit(fifth?.parse()?, third?.parse()?) }),
         Some("Transfer") => Ok(Transaction{action: Action::Transfer(fifth?.parse()?, seventh?.parse()?, third?.parse()?) }),
-        // Some(x) => Err(ParseError::Format("unknown action {}")),
         Some(_) => Err(ParseError::Format("unknown action")),
         None => Err(ParseError::Format("missing action")),
     }
@@ -166,7 +138,6 @@ async fn handle_conn(stream: TcpStream) -> io::Result<()> {
             },
             Action::Deposit(x, v) => {accounts.entry(x).and_modify(|e| *e += v);},
             Action::Transfer(f, t, v) => {
-                // accounts.entry(f).and_modify(|e| *e -= v);
                 // do transfer if balance sufficient, else ignore
                 if let Some(balance) = accounts.get_mut(&f) {
                     if *balance >= v {
