@@ -1,7 +1,8 @@
 use clap::Parser;
 use generator::cli::Cli;
 use generator::protocol;
-use itoa::Buffer;
+use generator::ShuffledSequenceGenerator;
+// use itoa::Buffer;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::{
     io::{self, BufWriter, Write},
@@ -33,7 +34,8 @@ fn main() {
     eprintln!("Generating transactions and firing them to {}", cli.server);
 
     let mut rng = StdRng::seed_from_u64(12345);
-    let mut seqg = (0..).map(|s| s as u32);
+    // let mut seqg = (0..).map(|s| s as u32);
+    let mut seqg = ShuffledSequenceGenerator::new(1_000, rng.clone());
 
     // Open a bufwriter to either the socket or stdout
     //
