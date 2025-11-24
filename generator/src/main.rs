@@ -6,6 +6,8 @@ use rand::{Rng, SeedableRng, rngs::SmallRng};
 use std::{
     io::{self, BufWriter, Write},
     net::TcpStream,
+    sync::Arc,
+    thread,
 };
 
 fn gen_account(rng: &mut SmallRng) -> u64 {
@@ -28,6 +30,7 @@ fn gen_amount(rng: &mut SmallRng, max: &u32) -> u32 {
 
 const ACCOUNT_START_MAX: u32 = 99_999_999;
 const TRANSFER_MAX: u32 = 999_999;
+const BUFFER_SIZE: usize = 16 * 1024 * 1024; // 16MB
 
 fn derive_transaction_from_seq(
     seq: u64,
@@ -87,51 +90,96 @@ fn derive_transaction_from_seq(
 fn main() {
     let cli = Cli::parse();
 
-    eprintln!("Generating transactions and firing them to {}", cli.server);
-
-    let mut accounts_rng = SmallRng::seed_from_u64(12345);
-
-    // Open a bufwriter to either the socket or stdout
-    //
-    const BUFFER_SIZE: usize = 16 * 1024 * 1024; // 16MB
-    let mut writer: BufWriter<Box<dyn Write>> = if cli.output_stdout {
-        BufWriter::with_capacity(BUFFER_SIZE, Box::new(io::stdout()))
-    } else {
-        match TcpStream::connect(cli.server.clone()) {
-            Ok(stream) => BufWriter::with_capacity(BUFFER_SIZE, Box::new(stream)),
-            Err(e) => {
-                eprintln!("Connection failed: {}", e);
-                std::process::exit(1);
-            }
-        }
-    };
-
     // Generate a bunch of accounts
     //
+    eprintln!("Generating {} accounts...", cli.num_accounts);
+    let mut accounts_rng = SmallRng::seed_from_u64(12345);
     let accounts: Vec<u64> = (0..)
         .map(|_| gen_account(&mut accounts_rng))
         .take(cli.num_accounts as usize)
         .collect();
-
-    // Reusable buffers for formatting messages
-    let mut msg_buf = String::with_capacity(256);
-    let mut itoa_buf = itoa::Buffer::new();
-
-    // We only care about seq numbers now, everything is derivable
-    //
     let total_txs = cli.num_accounts * 2 + cli.num_transfers;
 
-    for seq in 0..total_txs {
-        derive_transaction_from_seq(seq, &cli, &accounts, &mut msg_buf, &mut itoa_buf);
+    // Thread safe access to the objects
+    //
+    let cli = Arc::new(cli);
+    let accounts = Arc::new(accounts);
 
-        if cli.verbose {
-            eprint!("Sending [{}]", msg_buf.trim_end());
-        }
-        writer.write_all(msg_buf.as_bytes()).expect("Write failed");
+    // Thread handles
+    //
+    let mut handles = vec![];
 
-        if seq > 0 && seq % 10_000_000 == 0 {
-            eprintln!("  Sent {} total messages...", seq);
-        }
+    for conn_idx in 0..cli.connections {
+        let cli = Arc::clone(&cli);
+        let accounts = Arc::clone(&accounts);
+
+        let handle = thread::spawn(move || {
+            // Create a writer for the connection
+            //
+            let mut writer = if cli.output_stdout {
+                // Can write to stdout multi-threaded - why not?
+                //
+                eprintln!("New stdout connection ({})", conn_idx);
+                BufWriter::with_capacity(BUFFER_SIZE, Box::new(io::stdout()) as Box<dyn Write>)
+            } else {
+                match TcpStream::connect(&cli.server) {
+                    Ok(stream) => {
+                        eprintln!("New socket connection ({})", conn_idx);
+                        BufWriter::with_capacity(BUFFER_SIZE, Box::new(stream) as Box<dyn Write>)
+                    }
+                    Err(e) => {
+                        eprintln!("Connection {} failed: {}", conn_idx, e);
+                        std::process::exit(1);
+                    }
+                }
+            };
+
+            // Reusable buffers for formatting messages
+            //
+            let mut msg_buf = String::with_capacity(256);
+            let mut itoa_buf = itoa::Buffer::new();
+
+            // Calculate which sequences this thread handles
+            //
+            let total_txs = cli.num_accounts * 2 + cli.num_transfers;
+            let batch_size = cli.batch as u64;
+            let stride = (cli.connections as u64) * batch_size;
+
+            // This thread's batches start at: conn_idx * batch_size, then + stride each time
+            let mut batch_start = (conn_idx as u64) * batch_size;
+
+            while batch_start < total_txs {
+                // Process one complete batch
+                for offset in 0..batch_size {
+                    let seq = batch_start + offset;
+                    if seq >= total_txs {
+                        break;
+                    }
+
+                    derive_transaction_from_seq(seq, &cli, &accounts, &mut msg_buf, &mut itoa_buf);
+
+                    if cli.verbose {
+                        eprintln!("Connection {} sending [{}]", conn_idx, msg_buf.trim_end());
+                    }
+
+                    writer.write_all(msg_buf.as_bytes()).expect("Write failed");
+
+                    if seq > 0 && seq % 10_000_000 == 0 {
+                        eprintln!("  Sent {} messages...", seq);
+                    }
+                }
+
+                // Jump to this thread's next batch
+                batch_start += stride;
+            }
+
+            writer.flush().expect("Flush failed");
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().expect("Thread panicked!");
     }
 
     eprintln!("Done! ({} total messages)", total_txs);
