@@ -23,6 +23,8 @@ import           Control.Concurrent             (forkFinally, forkIO,
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.TBQueue
 import           Control.Concurrent.STM.TQueue
+import           Control.Exception              (catch)
+import           Control.Exception.Base         (IOException)
 import           Control.Monad.Loops
 import           Data.Function                  (fix)
 import           Data.Text                      (Text, unpack)
@@ -146,7 +148,9 @@ simpleThreaded sock =
                     hSetBuffering handle (BlockBuffering (Just 65536))
                     untilM_
                         (do
-                            lines <- replicateM 1000 (BS.hGetLine handle)
+                            lines <- catch
+                                        (replicateM 1000 (BS.hGetLine handle))
+                                        (\(_ :: IOException) -> pure [])
                             atomically $ writeTBQueue rawQ (Just lines)
                         )
                         (hIsEOF handle)

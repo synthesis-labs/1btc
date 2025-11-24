@@ -75,20 +75,20 @@ We track a number of known-good answers for testing purposes:
 
 | Num Accounts (`--num-accounts`) | Num Transfers (`--num-transfers`) | Value |
 | --- | --- | --- |
-|       2 |             1 | 7802340435860874795 |
-|      10 |            10 | 206922370281506044649 |
-|   1,000 |         1,000 | 14586923064889399786004 |
-|   1,000 |        10,000 | 14604034398384103320717 |
-| 200,000 |             1 | 1379473486286508022766389 |
-| 200,000 |            10 | 1379473157038380158919351 |
-| 200,000 |           100 | 1379473030790083308728760 |
-| 200,000 |         1,000 | 1379469252337716689591052 |
-| 200,000 |        10,000 | 1379448067965350643940280 |
-| 200,000 |       100,000 | 1379474499842954888781766 |
-| 200,000 |     1,000,000 | 1379547085520990531072141 |
-| 200,000 |    10,000,000 | 1379887199356639263280479 |
-| 200,000 |   100,000,000 | 1379236686063303335021910 |
-| 200,000 | 1,000,000,000 | 1378673841163113785331623 |
+|       2 |             1 | 26789356497795734557 |
+|      10 |            10 | 166457144743206452491 |
+|   1,000 |         1,000 | 14843982935862577942349 |
+|   1,000 |        10,000 | 14844401297437455612815 |
+| 200,000 |             1 | 2745017987012080295698533 |
+| 200,000 |            10 | 2745018235689397693183495 |
+| 200,000 |           100 | 2745016059864085133436106 |
+| 200,000 |         1,000 | 2745011554539198564613888 |
+| 200,000 |        10,000 | 2745016940405660348538023 |
+| 200,000 |       100,000 | 2745027965563243583821811 |
+| 200,000 |     1,000,000 | 2744936786565869061234119 |
+| 200,000 |    10,000,000 | 2744526020641388560472069 |
+| 200,000 |   100,000,000 | 2742816079156645111811128 |
+| 200,000 | 1,000,000,000 | 2736024334292708155522530 |
 
 ## Results
 
@@ -96,10 +96,10 @@ We will keep track of everyone's scores as we write solutions.
 
 | folder | language | notes | time |
 | --- | --- | --- | --- |
-| tom/ | haskell | `singleThreaded` - Very basic, single-threaded, StateT/MVar, not optimised | ~ 70 minutes |
+| tom/ | haskell | `singleThreaded` - Very basic, single-threaded, StateT/MVar, not optimised | ~ 38 minutes |
 | mike/ | rust | `simple parser` - basic solution to validate logic, not optimised | ~ 35 minutes |
 | tom/ | haskell | `simpleThreaded` - Basic, split read, parse and process into seperate threads (to keep ordering), TVar updates | ~ 28 minutes |
-| tom/ | haskell | `queuedStm` - Using STM to coordinate updates to accounts, using a thread pool. Ordering completely screwed of course - so incorrect results. | ~ 21 minutes |
+| tom/ | haskell | `queuedStm` - Using STM to coordinate updates to accounts, using a thread pool. Ordering completely screwed of course - so incorrect results. | ~ 18 minutes |
 | mike/ | rust | `optimised parser` - Applied some brains to the parser using a flamegraph to identify bottlenecks | ~ 2:01 |
 | mike/ | rust | `unsafe strings` - convert stream to Str using unchecked method | ~ 0:40.57 |
 
