@@ -9,7 +9,9 @@ use std::{
 };
 
 fn gen_account(rng: &mut StdRng) -> u64 {
-    rng.random_range(99_999_999_999..1_000_000_000_000u64)
+    // low to high (both inclusive) - fixed 12 digits
+    //
+    rng.random_range(100_000_000_000..=999_999_999_999u64)
 }
 
 fn pick_account_idx(rng: &mut StdRng, num_accounts: usize) -> usize {
