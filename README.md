@@ -50,6 +50,25 @@ For the crazies there is also a compact wire protocol which reduces the number o
 5|T|208011|375339063135|894804063960
 ```
 
+## Concurrency
+
+If you're ready to take things to the next level then `--connections` and `--batch` are your new friends! 
+
+- `--connections` -> number of concurrent processes to run to generate transactions
+- `--batch` -> number of sequential transactions per process to generate in a round-robin fashion
+
+e.g. `--connections 4 --batch 1` will generate: 
+- `connection 0 -> [  0,  4,  8, 12, ..]`
+- `connection 1 -> [  1,  5,  9, 13, ..]`
+- `connection 2 -> [  2,  6, 10, 14, ..]`
+- `connection 3 -> [  3,  7, 11, 15, ..]`
+
+while `--connections 4 --batch 4` will generate:
+- `connection 0 -> [  0,  1,  2,  3, ..]`
+- `connection 1 -> [  4,  5,  6,  7, ..]`
+- `connection 2 -> [  8,  9, 10, 11, ..]`
+- `connection 3 -> [ 12, 13, 14, 15, ..]`
+
 ## Known good answers
 
 We track a number of known-good answers for testing purposes:
