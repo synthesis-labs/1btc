@@ -24,4 +24,17 @@ pub struct Cli {
         default_value_t = false
     )]
     pub compact: bool,
+
+    #[arg(
+        long,
+        help = "Number of concurrent connections to make",
+        default_value_t = 1
+    )]
+    pub connections: usize,
+    #[arg(
+        long,
+        help = "Number of sequential transactions to send at a time",
+        default_value_t = 1_000_000_000
+    )]
+    pub batch: usize,
 }
