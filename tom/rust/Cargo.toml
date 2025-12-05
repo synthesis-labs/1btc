@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "sync", "macros"] }
 dashmap = "6"
+rustc-hash = "2"
