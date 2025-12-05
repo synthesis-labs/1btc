@@ -1,10 +1,10 @@
 use nom::{
+    IResult,
     branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{digit1, space1},
     combinator::map,
     sequence::{preceded, tuple},
-    IResult,
 };
 
 use crate::types::{Action, Transaction};
@@ -63,7 +63,7 @@ fn parse_transaction(input: &str) -> IResult<&str, Transaction> {
     )(input)
 }
 
-pub fn parse_line(line: &str) -> Result<Transaction, String> {
+pub fn parse(line: &str) -> Result<Transaction, String> {
     match parse_transaction(line) {
         Ok((_, transaction)) => Ok(transaction),
         Err(e) => Err(format!("Parse error: {}", e)),

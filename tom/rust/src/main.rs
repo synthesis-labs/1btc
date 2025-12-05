@@ -1,7 +1,9 @@
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::TcpListener;
 
-mod parser;
+mod parser_nom;
+mod parser_nom_compact;
+mod parser_raw_compact;
 mod types;
 use types::{Action, Transaction};
 
@@ -19,10 +21,16 @@ async fn main() -> std::io::Result<()> {
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                // match parser::parse_line(&line) {
+                // Using nom parser:
+                //
+                // match parser_nom::parse(&line) {
                 //     Ok(transaction) => {} // println!("{:?}", transaction),
                 //     Err(e) => println!("Error parsing line: {}", e),
                 // }
+                // Using nom parser (compact):
+                //
+                // let x = parser_nom_compact::parse(&line);
+                let x = parser_raw_compact::parse(&line);
             }
 
             println!("Connection closed: {}", addr);
