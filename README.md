@@ -103,6 +103,7 @@ We will keep track of everyone's scores as we write solutions.
 | mike/ | rust | `optimised parser` - Applied some brains to the parser using a flamegraph to identify bottlenecks | ~ 2 minutes |
 | mike/ | rust | `unsafe strings` - convert stream to Str using unchecked method | ~ 40.57 seconds |
 | tom/ | rust | `batch_reorder` - Multiple producers receiving and parsing with a single consumer maintaining balances. Run with `--connections 12 --batch 100000 --compact` | ~ 12.4 seconds |
+| joris/ | kotlin | `kotlin` - Single-threaded consumer, supporting multiple connections through NIO async IO. Enforces serializability by resequencing incoming messages. Autodetects message format. | ~ 60 seconds |
 
 ## Contributing
 
